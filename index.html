@@ -5,18 +5,16 @@
 <meta charset="UTF-8">
 <title>三人麻雀累計計算機</title>
 <style>
-body { font-family: Arial, sans-serif; padding: 20px; max-width: 700px; margin: auto; background: #f9f9f9; }
+body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: auto; background: #f9f9f9; }
 h2, h4 { text-align: center; }
-input, button { margin: 5px; padding: 10px; }
-button { min-width: 70px; font-size: 16px; }
-#controls button { min-width: 80px; font-size: 18px; }
+input, button { margin: 5px; padding: 15px; font-size: 20px; }
+button { min-width: 100px; }
+#controls button { min-width: 120px; font-size: 22px; }
 .result, .log, .stats { margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px #ccc; }
-.log-item { margin-bottom: 5px; padding: 5px; background: #eef; border-radius: 4px; }
-.stats-table { width: 100%; border-collapse: collapse; }
-.stats-table td, .stats-table th { border: 1px solid #ccc; padding: 5px; text-align: center; }
-.highlight { background-color: #add8e6; }
-.green { background-color: lightgreen !important; }
-.red { background-color: lightcoral !important; }
+.stats-table, .log-table { width: 100%; border-collapse: collapse; }
+.stats-table td, .stats-table th, .log-table td, .log-table th { border: 1px solid #ccc; padding: 8px; text-align: center; font-size: 18px; }
+.highlight-winner { background-color: lightgreen !important; }
+.highlight-loser { background-color: lightcoral !important; }
 </style>
 </head>
 <body>
@@ -95,12 +93,10 @@ function updatePlayerNames() {
     players.forEach(name => {
         const btn1 = document.createElement("button");
         btn1.innerText = name;
-        btn1.className = "green";
         btn1.onclick = () => { winner = name; highlightButtons(); };
         winnerDiv.appendChild(btn1);
         const btn2 = document.createElement("button");
         btn2.innerText = name;
-        btn2.className = "red";
         btn2.onclick = () => { loser = name; highlightButtons(); };
         loserDiv.appendChild(btn2);
     });
@@ -116,10 +112,10 @@ function updatePlayerNames() {
 }
 
 function highlightButtons() {
-    document.querySelectorAll("#winnerButtons button").forEach(btn => btn.classList.toggle("highlight", btn.innerText === winner));
-    document.querySelectorAll("#loserButtons button").forEach(btn => btn.classList.toggle("highlight", btn.innerText === loser));
-    document.querySelectorAll("#fanButtons button").forEach(btn => btn.classList.toggle("highlight", parseInt(btn.innerText) === selectedFan));
-    document.querySelectorAll("#methodButtons button").forEach(btn => btn.classList.toggle("highlight", btn.innerText === selectedMethod));
+    document.querySelectorAll("#winnerButtons button").forEach(btn => btn.classList.toggle("highlight-winner", btn.innerText === winner));
+    document.querySelectorAll("#loserButtons button").forEach(btn => btn.classList.toggle("highlight-loser", btn.innerText === loser));
+    document.querySelectorAll("#fanButtons button").forEach(btn => btn.style.backgroundColor = (parseInt(btn.innerText) === selectedFan) ? "#add8e6" : "");
+    document.querySelectorAll("#methodButtons button").forEach(btn => btn.style.backgroundColor = (btn.innerText === selectedMethod) ? "#add8e6" : "");
 }
 
 function renderFanButtons() {
@@ -149,6 +145,7 @@ function addResult() {
     if (!winner || (selectedMethod === "出聰" && !loser)) return alert("請選擇勝出與輸家！");
     const amount = selectedMethod === "出聰" ? priceTable[selectedFan].chong : priceTable[selectedFan].zimo;
     const record = { changes: {}, fan: selectedFan };
+    players.forEach(p => record.changes[p] = 0);
     if (selectedMethod === "出聰") {
         total[winner] += amount;
         total[loser] -= amount;
@@ -189,26 +186,24 @@ function updateStats() {
 function updateLog() {
     const logDiv = document.getElementById("log");
     logDiv.innerHTML = "<h4>紀錄</h4>";
+    let html = `<table class="log-table"><tr><th>場次</th>`;
+    players.forEach(p => html += `<th>${p}</th>`);
+    html += `<th>操作</th></tr>`;
     records.forEach((r, i) => {
-        const div = document.createElement("div");
-        div.className = "log-item";
-        let txt = "";
+        html += `<tr><td>${i + 1}</td>`;
         players.forEach(p => {
-            if (r.changes[p]) {
-                const sign = r.changes[p] >= 0 ? "+" : "";
-                txt += `${p}${sign}$${r.changes[p]} `;
-            }
+            const val = r.changes[p];
+            html += `<td>${val > 0 ? "+" : ""}${val}</td>`;
         });
-        div.innerHTML = txt.trim() + ` <button onclick="deleteRecord(${i})" style="float:right;">取消</button>`;
-        logDiv.appendChild(div);
+        html += `<td><button onclick="deleteRecord(${i})">取消</button></td></tr>`;
     });
+    html += "</table>";
+    logDiv.innerHTML += html;
 }
 
 function deleteRecord(index) {
     const r = records[index];
-    players.forEach(p => {
-        if (r.changes[p]) total[p] -= r.changes[p];
-    });
+    players.forEach(p => total[p] -= r.changes[p]);
     const winnerName = Object.keys(r.changes).find(p => r.changes[p] > 0);
     if (r.changes[winnerName] === priceTable[r.fan].chong) stats[winnerName].chongTotal--;
     else stats[winnerName].zimoTotal--;
