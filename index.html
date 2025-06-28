@@ -60,7 +60,7 @@ button { min-width: 100px; }
 
 <script>
 let players = ["A", "B", "C"];
-let total = { "A": 0, "B": 0, "C": 0 };
+let total = {};
 let stats = {};
 let winner = "";
 let loser = "";
@@ -82,6 +82,27 @@ function createStats() {
     return { chongTotal: 0, zimoTotal: 0 };
 }
 
+function saveData() {
+    const data = { players, total, stats, records };
+    localStorage.setItem("mahjongData", JSON.stringify(data));
+}
+
+function loadData() {
+    const data = JSON.parse(localStorage.getItem("mahjongData"));
+    if (data) {
+        players = data.players;
+        total = data.total;
+        stats = data.stats;
+        records = data.records;
+        document.getElementById("playerA").value = players[0];
+        document.getElementById("playerB").value = players[1];
+        document.getElementById("playerC").value = players[2];
+    } else {
+        total = { "A": 0, "B": 0, "C": 0 };
+        stats = { "A": createStats(), "B": createStats(), "C": createStats() };
+    }
+}
+
 function updatePlayerNames() {
     players[0] = document.getElementById("playerA").value || "A";
     players[1] = document.getElementById("playerB").value || "B";
@@ -100,15 +121,15 @@ function updatePlayerNames() {
         btn2.onclick = () => { loser = name; highlightButtons(); };
         loserDiv.appendChild(btn2);
     });
-    total = { [players[0]]: 0, [players[1]]: 0, [players[2]]: 0 };
-    stats = {};
-    players.forEach(p => stats[p] = createStats());
-    records = [];
+    if (!total[players[0]]) total = { [players[0]]: 0, [players[1]]: 0, [players[2]]: 0 };
+    if (!stats[players[0]]) stats = {};
+    players.forEach(p => { if (!stats[p]) stats[p] = createStats(); });
     renderFanButtons();
     renderMethodButtons();
     updateSummary();
     updateStats();
     updateLog();
+    saveData();
 }
 
 function highlightButtons() {
@@ -165,6 +186,7 @@ function addResult() {
     updateSummary();
     updateStats();
     updateLog();
+    saveData();
 }
 
 function updateSummary() {
@@ -175,9 +197,11 @@ function updateSummary() {
 }
 
 function updateStats() {
-    let html = `<table class="stats-table"><tr><th>玩家</th><th>出聰次數</th><th>自摸次數</th></tr>`;
+    let html = `<table class="stats-table"><tr><th>玩家</th><th>出聰</th><th>自摸</th><th>勝率</th></tr>`;
     players.forEach(p => {
-        html += `<tr><td>${p}</td><td>${stats[p].chongTotal}</td><td>${stats[p].zimoTotal}</td></tr>`;
+        const totalWin = stats[p].chongTotal + stats[p].zimoTotal;
+        const winRate = records.length ? ((totalWin / records.length) * 100).toFixed(1) + "%" : "0%";
+        html += `<tr><td>${p}</td><td>${stats[p].chongTotal}</td><td>${stats[p].zimoTotal}</td><td>${winRate}</td></tr>`;
     });
     html += "</table>";
     document.getElementById("stats").innerHTML = html;
@@ -211,9 +235,12 @@ function deleteRecord(index) {
     updateSummary();
     updateStats();
     updateLog();
+    saveData();
 }
 
+loadData();
 updatePlayerNames();
+highlightButtons();
 </script>
 
 </body>
