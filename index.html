@@ -5,43 +5,58 @@
 <meta charset="UTF-8">
 <title>三人麻雀累計計算機</title>
 <style>
-body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-input, select { margin: 5px 0; width: 100%; padding: 8px; }
-button { margin: 5px; padding: 10px; min-width: 60px; }
-.result, .log, .stats { margin-top: 20px; background: #f0f0f0; padding: 10px; }
+body { font-family: Arial, sans-serif; padding: 20px; max-width: 700px; margin: auto; background: #f9f9f9; }
+h2, h4 { text-align: center; }
+input, button { margin: 5px; padding: 10px; }
+button { min-width: 70px; font-size: 16px; }
+#controls button { min-width: 80px; font-size: 18px; }
+.result, .log, .stats { margin-top: 20px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 0 5px #ccc; }
+.log-item { margin-bottom: 5px; padding: 5px; background: #eef; border-radius: 4px; }
+.stats-table { width: 100%; border-collapse: collapse; }
+.stats-table td, .stats-table th { border: 1px solid #ccc; padding: 5px; text-align: center; }
+.highlight { background-color: #add8e6; }
 </style>
 </head>
 <body>
 
 <h2>三人麻雀累計計算機</h2>
 
-<h4>玩家名稱設定：</h4>
+<div class="result">
+<h4>玩家名稱設定</h4>
 <input type="text" id="playerA" placeholder="玩家A名稱" value="A">
 <input type="text" id="playerB" placeholder="玩家B名稱" value="B">
 <input type="text" id="playerC" placeholder="玩家C名稱" value="C">
 <button onclick="updatePlayerNames()">確定名稱</button>
+</div>
 
-<h4>選擇勝出玩家：</h4>
+<div class="result" id="controls">
+<h4>選擇勝出玩家</h4>
 <div id="winnerButtons"></div>
 
-<h4>選擇輸家：</h4>
+<h4>選擇輸家</h4>
 <div id="loserButtons"></div>
 
-<h4>選擇番數：</h4>
+<h4>番數</h4>
 <div id="fanButtons"></div>
 
-<h4>選擇勝出方式：</h4>
+<h4>勝出方式</h4>
 <div id="methodButtons"></div>
 
-<button onclick="addResult()">記錄此場</button>
+<button style="background-color:lightgreen;" onclick="addResult()">記錄此場</button>
+</div>
 
-<div class="log" id="log"></div>
+<div class="log" id="log"><h4>紀錄</h4></div>
 
-<h4>總結：</h4>
-<div class="result" id="summary"></div>
+<div class="result">
+<h4>總結</h4>
+<div id="summary"></div>
+<div id="totalGames"></div>
+</div>
 
-<h4>統計次數：</h4>
-<div class="stats" id="stats"></div>
+<div class="stats">
+<h4>統計</h4>
+<div id="stats"></div>
+</div>
 
 <script>
 let players = ["A", "B", "C"];
@@ -51,7 +66,7 @@ let winner = "";
 let loser = "";
 let selectedFan = 3;
 let selectedMethod = "出聰";
-
+let records = [];
 const priceTable = {
     3: { chong: 2, zimo: 2 },
     4: { chong: 4, zimo: 3 },
@@ -64,60 +79,43 @@ const priceTable = {
 };
 
 function createStats() {
-    return {
-        chongCount: {}, 
-        zimoCount: {}   
-    };
+    return { chongTotal: 0, zimoTotal: 0 };
 }
 
 function updatePlayerNames() {
     players[0] = document.getElementById("playerA").value || "A";
     players[1] = document.getElementById("playerB").value || "B";
     players[2] = document.getElementById("playerC").value || "C";
-
     const winnerDiv = document.getElementById("winnerButtons");
     const loserDiv = document.getElementById("loserButtons");
     winnerDiv.innerHTML = "";
     loserDiv.innerHTML = "";
-
     players.forEach(name => {
         const btn1 = document.createElement("button");
         btn1.innerText = name;
         btn1.onclick = () => { winner = name; highlightButtons(); };
         winnerDiv.appendChild(btn1);
-
         const btn2 = document.createElement("button");
         btn2.innerText = name;
         btn2.onclick = () => { loser = name; highlightButtons(); };
         loserDiv.appendChild(btn2);
     });
-
     total = { [players[0]]: 0, [players[1]]: 0, [players[2]]: 0 };
     stats = {};
-    players.forEach(p => {
-        stats[p] = createStats();
-    });
-
-    document.getElementById("log").innerHTML = "";
+    players.forEach(p => stats[p] = createStats());
+    records = [];
     renderFanButtons();
     renderMethodButtons();
     updateSummary();
     updateStats();
+    updateLog();
 }
 
 function highlightButtons() {
-    document.querySelectorAll("#winnerButtons button").forEach(btn => {
-        btn.style.backgroundColor = (btn.innerText === winner) ? "#90ee90" : "";
-    });
-    document.querySelectorAll("#loserButtons button").forEach(btn => {
-        btn.style.backgroundColor = (btn.innerText === loser) ? "#f08080" : "";
-    });
-    document.querySelectorAll("#fanButtons button").forEach(btn => {
-        btn.style.backgroundColor = (parseInt(btn.innerText) === selectedFan) ? "#add8e6" : "";
-    });
-    document.querySelectorAll("#methodButtons button").forEach(btn => {
-        btn.style.backgroundColor = (btn.innerText === selectedMethod) ? "#add8e6" : "";
-    });
+    document.querySelectorAll("#winnerButtons button").forEach(btn => btn.classList.toggle("highlight", btn.innerText === winner));
+    document.querySelectorAll("#loserButtons button").forEach(btn => btn.classList.toggle("highlight", btn.innerText === loser));
+    document.querySelectorAll("#fanButtons button").forEach(btn => btn.classList.toggle("highlight", parseInt(btn.innerText) === selectedFan));
+    document.querySelectorAll("#methodButtons button").forEach(btn => btn.classList.toggle("highlight", btn.innerText === selectedMethod));
 }
 
 function renderFanButtons() {
@@ -143,66 +141,67 @@ function renderMethodButtons() {
 }
 
 function addResult() {
-    if (selectedMethod === "出聰" && winner === loser) {
-        alert("勝出玩家與輸家不能相同！");
-        return;
-    }
-    if (!priceTable[selectedFan]) {
-        alert("番數錯誤！");
-        return;
-    }
-    if (!winner || (selectedMethod === "出聰" && !loser)) {
-        alert("請選擇勝出與輸家！");
-        return;
-    }
-
-    const chongAmount = priceTable[selectedFan].chong;
-    const zimoAmount = priceTable[selectedFan].zimo;
-    let logText = "";
-    
+    if (selectedMethod === "出聰" && winner === loser) return alert("勝出玩家與輸家不能相同！");
+    if (!winner || (selectedMethod === "出聰" && !loser)) return alert("請選擇勝出與輸家！");
+    const amount = selectedMethod === "出聰" ? priceTable[selectedFan].chong : priceTable[selectedFan].zimo;
     if (selectedMethod === "出聰") {
-        total[winner] += chongAmount;
-        total[loser] -= chongAmount;
-        stats[winner].chongCount[selectedFan] = (stats[winner].chongCount[selectedFan] || 0) + 1;
-        logText = `${winner} 出聰 ${loser}，番數：${selectedFan}，金額：$${chongAmount}`;
-    } else if (selectedMethod === "自摸") {
-        const others = players.filter(p => p !== winner);
-        others.forEach(p => {
-            total[winner] += zimoAmount;
-            total[p] -= zimoAmount;
-        });
-        stats[winner].zimoCount[selectedFan] = (stats[winner].zimoCount[selectedFan] || 0) + 1;
-        logText = `${winner} 自摸，番數：${selectedFan}，每人付：$${zimoAmount}`;
+        total[winner] += amount;
+        total[loser] -= amount;
+        stats[winner].chongTotal++;
+    } else {
+        players.filter(p => p !== winner).forEach(p => total[p] -= amount);
+        total[winner] += amount * 2;
+        stats[winner].zimoTotal++;
     }
-
-    document.getElementById("log").innerHTML += logText + "<br>";
+    records.push({ winner, loser, fan: selectedFan, method: selectedMethod });
     updateSummary();
     updateStats();
+    updateLog();
 }
 
 function updateSummary() {
-    let summary = "";
-    players.forEach(name => {
-        summary += `${name} 總金額：$${total[name].toFixed(2)}<br>`;
-    });
-    document.getElementById("summary").innerHTML = summary;
+    let html = "";
+    players.forEach(p => html += `${p}：$${total[p].toFixed(2)}<br>`);
+    document.getElementById("summary").innerHTML = html;
+    document.getElementById("totalGames").innerText = `總場數：${records.length}`;
 }
 
 function updateStats() {
-    let statsText = "";
-    players.forEach(name => {
-        statsText += `<strong>${name}：</strong><br>`;
-        statsText += `出聰次數：<br>`;
-        for (let fan = 3; fan <= 10; fan++) {
-            statsText += `${fan}番：${stats[name].chongCount[fan] || 0} 次<br>`;
-        }
-        statsText += `自摸次數：<br>`;
-        for (let fan = 3; fan <= 10; fan++) {
-            statsText += `${fan}番：${stats[name].zimoCount[fan] || 0} 次<br>`;
-        }
-        statsText += `<br>`;
+    let html = `<table class="stats-table"><tr><th>玩家</th><th>出聰次數</th><th>自摸次數</th></tr>`;
+    players.forEach(p => {
+        html += `<tr><td>${p}</td><td>${stats[p].chongTotal}</td><td>${stats[p].zimoTotal}</td></tr>`;
     });
-    document.getElementById("stats").innerHTML = statsText;
+    html += "</table>";
+    document.getElementById("stats").innerHTML = html;
+}
+
+function updateLog() {
+    const logDiv = document.getElementById("log");
+    logDiv.innerHTML = "<h4>紀錄</h4>";
+    records.forEach((r, i) => {
+        const div = document.createElement("div");
+        div.className = "log-item";
+        div.innerHTML = `${r.winner} ${r.method} ${r.loser || ""}，番數：${r.fan} <button onclick="deleteRecord(${i})" style="float:right;">取消</button>`;
+        logDiv.appendChild(div);
+    });
+}
+
+function deleteRecord(index) {
+    const r = records[index];
+    const amount = r.method === "出聰" ? priceTable[r.fan].chong : priceTable[r.fan].zimo;
+    if (r.method === "出聰") {
+        total[r.winner] -= amount;
+        total[r.loser] += amount;
+        stats[r.winner].chongTotal--;
+    } else {
+        players.filter(p => p !== r.winner).forEach(p => total[p] += amount);
+        total[r.winner] -= amount * 2;
+        stats[r.winner].zimoTotal--;
+    }
+    records.splice(index, 1);
+    updateSummary();
+    updateStats();
+    updateLog();
 }
 
 updatePlayerNames();
