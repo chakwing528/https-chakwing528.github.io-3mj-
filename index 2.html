@@ -1,0 +1,111 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>三人麻雀累計計算機</title>
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; }
+input, select { margin: 5px 0; width: 100%; padding: 8px; }
+button { margin-top: 10px; width: 100%; padding: 10px; }
+.result, .log { margin-top: 20px; background: #f0f0f0; padding: 10px; }
+</style>
+</head>
+<body>
+
+<h2>三人麻雀累計計算機</h2>
+
+<h4>玩家名稱設定：</h4>
+<input type="text" id="playerA" placeholder="玩家A名稱" value="A">
+<input type="text" id="playerB" placeholder="玩家B名稱" value="B">
+<input type="text" id="playerC" placeholder="玩家C名稱" value="C">
+<button onclick="updatePlayerNames()">確定名稱</button>
+
+<h4>輸入單場結果：</h4>
+<label>勝出玩家：</label>
+<select id="winner"></select>
+
+<label>輸家：</label>
+<select id="loser"></select>
+
+<label>番數：</label>
+<input type="number" id="fan" min="1" value="1">
+
+<label>每番金額（$）：</label>
+<input type="number" id="unit" value="1">
+
+<button onclick="addResult()">記錄此場</button>
+
+<div class="log" id="log"></div>
+
+<h4>總結：</h4>
+<div class="result" id="summary"></div>
+
+<script>
+let players = ["A", "B", "C"];
+let total = { "A": 0, "B": 0, "C": 0 };
+
+function updatePlayerNames() {
+    players[0] = document.getElementById("playerA").value || "A";
+    players[1] = document.getElementById("playerB").value || "B";
+    players[2] = document.getElementById("playerC").value || "C";
+
+    const winnerSelect = document.getElementById("winner");
+    const loserSelect = document.getElementById("loser");
+    winnerSelect.innerHTML = "";
+    loserSelect.innerHTML = "";
+
+    players.forEach(name => {
+        const option1 = document.createElement("option");
+        option1.value = name;
+        option1.text = name;
+        winnerSelect.add(option1);
+
+        const option2 = document.createElement("option");
+        option2.value = name;
+        option2.text = name;
+        loserSelect.add(option2);
+    });
+
+    total = { [players[0]]: 0, [players[1]]: 0, [players[2]]: 0 };
+    document.getElementById("log").innerHTML = "";
+    updateSummary();
+}
+
+function addResult() {
+    const winner = document.getElementById("winner").value;
+    const loser = document.getElementById("loser").value;
+    const fan = parseFloat(document.getElementById("fan").value);
+    const unit = parseFloat(document.getElementById("unit").value);
+
+    if (winner === loser) {
+        alert("勝出玩家與輸家不能相同！");
+        return;
+    }
+    if (isNaN(fan) || isNaN(unit) || fan <= 0 || unit <= 0) {
+        alert("請正確輸入番數與金額！");
+        return;
+    }
+
+    const amount = fan * unit;
+    total[winner] += amount;
+    total[loser] -= amount;
+
+    document.getElementById("log").innerHTML += `${winner} 勝出，${loser} 輸，番數：${fan}，金額：$${amount}<br>`;
+    updateSummary();
+}
+
+function updateSummary() {
+    let summary = "";
+    players.forEach(name => {
+        summary += `${name} 總金額：$${total[name].toFixed(2)}<br>`;
+    });
+    document.getElementById("summary").innerHTML = summary;
+}
+
+// 預設初始化選單
+updatePlayerNames();
+</script>
+
+</body>
+</html>
