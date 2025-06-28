@@ -5,10 +5,10 @@
 <meta charset="UTF-8">
 <title>三人麻雀累計計算機</title>
 <style>
-body { font-family: Arial, sans-serif; padding: 20px; max-width: 500px; margin: auto; }
+body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
 input, select { margin: 5px 0; width: 100%; padding: 8px; }
-button { margin-top: 10px; width: 100%; padding: 10px; }
-.result, .log { margin-top: 20px; background: #f0f0f0; padding: 10px; }
+button { margin: 5px; padding: 10px; min-width: 60px; }
+.result, .log, .stats { margin-top: 20px; background: #f0f0f0; padding: 10px; }
 </style>
 </head>
 <body>
@@ -21,18 +21,17 @@ button { margin-top: 10px; width: 100%; padding: 10px; }
 <input type="text" id="playerC" placeholder="玩家C名稱" value="C">
 <button onclick="updatePlayerNames()">確定名稱</button>
 
-<h4>輸入單場結果：</h4>
-<label>勝出玩家：</label>
-<select id="winner"></select>
+<h4>選擇勝出玩家：</h4>
+<div id="winnerButtons"></div>
 
-<label>輸家：</label>
-<select id="loser"></select>
+<h4>選擇輸家：</h4>
+<div id="loserButtons"></div>
 
-<label>番數：</label>
-<input type="number" id="fan" min="1" value="1">
+<h4>選擇番數：</h4>
+<div id="fanButtons"></div>
 
-<label>每番金額（$）：</label>
-<input type="number" id="unit" value="1">
+<h4>選擇勝出方式：</h4>
+<div id="methodButtons"></div>
 
 <button onclick="addResult()">記錄此場</button>
 
@@ -41,58 +40,144 @@ button { margin-top: 10px; width: 100%; padding: 10px; }
 <h4>總結：</h4>
 <div class="result" id="summary"></div>
 
+<h4>統計次數：</h4>
+<div class="stats" id="stats"></div>
+
 <script>
 let players = ["A", "B", "C"];
 let total = { "A": 0, "B": 0, "C": 0 };
+let stats = {};
+let winner = "";
+let loser = "";
+let selectedFan = 3;
+let selectedMethod = "出聰";
+
+const priceTable = {
+    3: { chong: 2, zimo: 2 },
+    4: { chong: 4, zimo: 3 },
+    5: { chong: 6, zimo: 5 },
+    6: { chong: 8, zimo: 6 },
+    7: { chong: 12, zimo: 9 },
+    8: { chong: 16, zimo: 12 },
+    9: { chong: 24, zimo: 18 },
+    10: { chong: 32, zimo: 24 }
+};
+
+function createStats() {
+    return {
+        chongCount: {}, 
+        zimoCount: {}   
+    };
+}
 
 function updatePlayerNames() {
     players[0] = document.getElementById("playerA").value || "A";
     players[1] = document.getElementById("playerB").value || "B";
     players[2] = document.getElementById("playerC").value || "C";
 
-    const winnerSelect = document.getElementById("winner");
-    const loserSelect = document.getElementById("loser");
-    winnerSelect.innerHTML = "";
-    loserSelect.innerHTML = "";
+    const winnerDiv = document.getElementById("winnerButtons");
+    const loserDiv = document.getElementById("loserButtons");
+    winnerDiv.innerHTML = "";
+    loserDiv.innerHTML = "";
 
     players.forEach(name => {
-        const option1 = document.createElement("option");
-        option1.value = name;
-        option1.text = name;
-        winnerSelect.add(option1);
+        const btn1 = document.createElement("button");
+        btn1.innerText = name;
+        btn1.onclick = () => { winner = name; highlightButtons(); };
+        winnerDiv.appendChild(btn1);
 
-        const option2 = document.createElement("option");
-        option2.value = name;
-        option2.text = name;
-        loserSelect.add(option2);
+        const btn2 = document.createElement("button");
+        btn2.innerText = name;
+        btn2.onclick = () => { loser = name; highlightButtons(); };
+        loserDiv.appendChild(btn2);
     });
 
     total = { [players[0]]: 0, [players[1]]: 0, [players[2]]: 0 };
+    stats = {};
+    players.forEach(p => {
+        stats[p] = createStats();
+    });
+
     document.getElementById("log").innerHTML = "";
+    renderFanButtons();
+    renderMethodButtons();
     updateSummary();
+    updateStats();
+}
+
+function highlightButtons() {
+    document.querySelectorAll("#winnerButtons button").forEach(btn => {
+        btn.style.backgroundColor = (btn.innerText === winner) ? "#90ee90" : "";
+    });
+    document.querySelectorAll("#loserButtons button").forEach(btn => {
+        btn.style.backgroundColor = (btn.innerText === loser) ? "#f08080" : "";
+    });
+    document.querySelectorAll("#fanButtons button").forEach(btn => {
+        btn.style.backgroundColor = (parseInt(btn.innerText) === selectedFan) ? "#add8e6" : "";
+    });
+    document.querySelectorAll("#methodButtons button").forEach(btn => {
+        btn.style.backgroundColor = (btn.innerText === selectedMethod) ? "#add8e6" : "";
+    });
+}
+
+function renderFanButtons() {
+    const fanDiv = document.getElementById("fanButtons");
+    fanDiv.innerHTML = "";
+    for (let fan = 3; fan <= 10; fan++) {
+        const btn = document.createElement("button");
+        btn.innerText = fan;
+        btn.onclick = () => { selectedFan = fan; highlightButtons(); };
+        fanDiv.appendChild(btn);
+    }
+}
+
+function renderMethodButtons() {
+    const methodDiv = document.getElementById("methodButtons");
+    methodDiv.innerHTML = "";
+    ["出聰", "自摸"].forEach(method => {
+        const btn = document.createElement("button");
+        btn.innerText = method;
+        btn.onclick = () => { selectedMethod = method; highlightButtons(); };
+        methodDiv.appendChild(btn);
+    });
 }
 
 function addResult() {
-    const winner = document.getElementById("winner").value;
-    const loser = document.getElementById("loser").value;
-    const fan = parseFloat(document.getElementById("fan").value);
-    const unit = parseFloat(document.getElementById("unit").value);
-
-    if (winner === loser) {
+    if (selectedMethod === "出聰" && winner === loser) {
         alert("勝出玩家與輸家不能相同！");
         return;
     }
-    if (isNaN(fan) || isNaN(unit) || fan <= 0 || unit <= 0) {
-        alert("請正確輸入番數與金額！");
+    if (!priceTable[selectedFan]) {
+        alert("番數錯誤！");
+        return;
+    }
+    if (!winner || (selectedMethod === "出聰" && !loser)) {
+        alert("請選擇勝出與輸家！");
         return;
     }
 
-    const amount = fan * unit;
-    total[winner] += amount;
-    total[loser] -= amount;
+    const chongAmount = priceTable[selectedFan].chong;
+    const zimoAmount = priceTable[selectedFan].zimo;
+    let logText = "";
+    
+    if (selectedMethod === "出聰") {
+        total[winner] += chongAmount;
+        total[loser] -= chongAmount;
+        stats[winner].chongCount[selectedFan] = (stats[winner].chongCount[selectedFan] || 0) + 1;
+        logText = `${winner} 出聰 ${loser}，番數：${selectedFan}，金額：$${chongAmount}`;
+    } else if (selectedMethod === "自摸") {
+        const others = players.filter(p => p !== winner);
+        others.forEach(p => {
+            total[winner] += zimoAmount;
+            total[p] -= zimoAmount;
+        });
+        stats[winner].zimoCount[selectedFan] = (stats[winner].zimoCount[selectedFan] || 0) + 1;
+        logText = `${winner} 自摸，番數：${selectedFan}，每人付：$${zimoAmount}`;
+    }
 
-    document.getElementById("log").innerHTML += `${winner} 勝出，${loser} 輸，番數：${fan}，金額：$${amount}<br>`;
+    document.getElementById("log").innerHTML += logText + "<br>";
     updateSummary();
+    updateStats();
 }
 
 function updateSummary() {
@@ -103,7 +188,23 @@ function updateSummary() {
     document.getElementById("summary").innerHTML = summary;
 }
 
-// 預設初始化選單
+function updateStats() {
+    let statsText = "";
+    players.forEach(name => {
+        statsText += `<strong>${name}：</strong><br>`;
+        statsText += `出聰次數：<br>`;
+        for (let fan = 3; fan <= 10; fan++) {
+            statsText += `${fan}番：${stats[name].chongCount[fan] || 0} 次<br>`;
+        }
+        statsText += `自摸次數：<br>`;
+        for (let fan = 3; fan <= 10; fan++) {
+            statsText += `${fan}番：${stats[name].zimoCount[fan] || 0} 次<br>`;
+        }
+        statsText += `<br>`;
+    });
+    document.getElementById("stats").innerHTML = statsText;
+}
+
 updatePlayerNames();
 </script>
 
