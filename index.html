@@ -15,6 +15,8 @@ button { min-width: 70px; font-size: 16px; }
 .stats-table { width: 100%; border-collapse: collapse; }
 .stats-table td, .stats-table th { border: 1px solid #ccc; padding: 5px; text-align: center; }
 .highlight { background-color: #add8e6; }
+.green { background-color: lightgreen !important; }
+.red { background-color: lightcoral !important; }
 </style>
 </head>
 <body>
@@ -45,8 +47,6 @@ button { min-width: 70px; font-size: 16px; }
 <button style="background-color:lightgreen;" onclick="addResult()">記錄此場</button>
 </div>
 
-<div class="log" id="log"><h4>紀錄</h4></div>
-
 <div class="result">
 <h4>總結</h4>
 <div id="summary"></div>
@@ -57,6 +57,8 @@ button { min-width: 70px; font-size: 16px; }
 <h4>統計</h4>
 <div id="stats"></div>
 </div>
+
+<div class="log" id="log"><h4>紀錄</h4></div>
 
 <script>
 let players = ["A", "B", "C"];
@@ -93,10 +95,12 @@ function updatePlayerNames() {
     players.forEach(name => {
         const btn1 = document.createElement("button");
         btn1.innerText = name;
+        btn1.className = "green";
         btn1.onclick = () => { winner = name; highlightButtons(); };
         winnerDiv.appendChild(btn1);
         const btn2 = document.createElement("button");
         btn2.innerText = name;
+        btn2.className = "red";
         btn2.onclick = () => { loser = name; highlightButtons(); };
         loserDiv.appendChild(btn2);
     });
@@ -144,16 +148,23 @@ function addResult() {
     if (selectedMethod === "出聰" && winner === loser) return alert("勝出玩家與輸家不能相同！");
     if (!winner || (selectedMethod === "出聰" && !loser)) return alert("請選擇勝出與輸家！");
     const amount = selectedMethod === "出聰" ? priceTable[selectedFan].chong : priceTable[selectedFan].zimo;
+    const record = { changes: {}, fan: selectedFan };
     if (selectedMethod === "出聰") {
         total[winner] += amount;
         total[loser] -= amount;
         stats[winner].chongTotal++;
+        record.changes[winner] = amount;
+        record.changes[loser] = -amount;
     } else {
-        players.filter(p => p !== winner).forEach(p => total[p] -= amount);
+        players.filter(p => p !== winner).forEach(p => {
+            total[p] -= amount;
+            record.changes[p] = -amount;
+        });
         total[winner] += amount * 2;
+        record.changes[winner] = amount * 2;
         stats[winner].zimoTotal++;
     }
-    records.push({ winner, loser, fan: selectedFan, method: selectedMethod });
+    records.push(record);
     updateSummary();
     updateStats();
     updateLog();
@@ -181,23 +192,26 @@ function updateLog() {
     records.forEach((r, i) => {
         const div = document.createElement("div");
         div.className = "log-item";
-        div.innerHTML = `${r.winner} ${r.method} ${r.loser || ""}，番數：${r.fan} <button onclick="deleteRecord(${i})" style="float:right;">取消</button>`;
+        let txt = "";
+        players.forEach(p => {
+            if (r.changes[p]) {
+                const sign = r.changes[p] >= 0 ? "+" : "";
+                txt += `${p}${sign}$${r.changes[p]} `;
+            }
+        });
+        div.innerHTML = txt.trim() + ` <button onclick="deleteRecord(${i})" style="float:right;">取消</button>`;
         logDiv.appendChild(div);
     });
 }
 
 function deleteRecord(index) {
     const r = records[index];
-    const amount = r.method === "出聰" ? priceTable[r.fan].chong : priceTable[r.fan].zimo;
-    if (r.method === "出聰") {
-        total[r.winner] -= amount;
-        total[r.loser] += amount;
-        stats[r.winner].chongTotal--;
-    } else {
-        players.filter(p => p !== r.winner).forEach(p => total[p] += amount);
-        total[r.winner] -= amount * 2;
-        stats[r.winner].zimoTotal--;
-    }
+    players.forEach(p => {
+        if (r.changes[p]) total[p] -= r.changes[p];
+    });
+    const winnerName = Object.keys(r.changes).find(p => r.changes[p] > 0);
+    if (r.changes[winnerName] === priceTable[r.fan].chong) stats[winnerName].chongTotal--;
+    else stats[winnerName].zimoTotal--;
     records.splice(index, 1);
     updateSummary();
     updateStats();
