@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>三麻戰績計算機 (專業版)</title>
+<title>三麻戰績計算機 (終極版)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
     body { font-family: "Microsoft JhengHei", Arial, sans-serif; padding: 20px; max-width: 900px; margin: auto; background: #f0f2f5; color: #333; }
@@ -15,7 +15,7 @@
     
     .container { margin-top: 20px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     
-    /* 表格樣式優化 */
+    /* 表格樣式 */
     .stats-table, .log-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
     .stats-table td, .stats-table th, .log-table td, .log-table th { border: 1px solid #eee; padding: 8px; text-align: center; }
     .stats-table th, .log-table th { background-color: #f8f9fa; font-weight: bold; color: #555; }
@@ -62,7 +62,7 @@
 </head>
 <body>
 
-<h2>🀄 三麻戰績計算機 (專業版)</h2>
+<h2>🀄 三麻戰績計算機</h2>
 
 <div class="container">
     <button class="reset-btn" onclick="resetAll()">⚠️ 重置</button>
@@ -140,11 +140,11 @@ const priceTable = {
 
 function saveData() {
     const data = { players, total, records, gameIndex };
-    localStorage.setItem("mahjongData_v4", JSON.stringify(data));
+    localStorage.setItem("mahjongData_v5", JSON.stringify(data));
 }
 
 function loadData() {
-    const data = JSON.parse(localStorage.getItem("mahjongData_v4"));
+    const data = JSON.parse(localStorage.getItem("mahjongData_v5"));
     if (data) {
         players = data.players;
         total = data.total;
@@ -167,7 +167,7 @@ function initGame() {
 
 function resetAll() {
     if(confirm("確定要重置所有紀錄和分數，重新開始東1局嗎？")) {
-        localStorage.removeItem("mahjongData_v4");
+        localStorage.removeItem("mahjongData_v5");
         initGame();
         updatePlayerNames(); 
         alert("已重置！");
@@ -205,7 +205,6 @@ function getDealer(idx) {
     return players[idx % 3];
 }
 
-// 格式化時間函數
 function getCurrentTime() {
     const now = new Date();
     return `${now.getMonth()+1}/${now.getDate()} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
@@ -494,59 +493,66 @@ function deleteRecord(index) {
     saveData();
 }
 
-// 修復後的 PDF 下載功能
+// 終極修復的 PDF 下載功能
 function downloadPDF() {
+    // 滾動到頂部，確保渲染正確
+    window.scrollTo(0,0);
+
     const btn = document.getElementById('downloadBtn');
-    btn.innerText = "🔄 正在產生 PDF...";
+    btn.innerText = "🔄 處理中...";
     btn.disabled = true;
 
-    // 1. 建立一個暫時的容器
-    const tempContainer = document.createElement('div');
+    // 1. 創建一個用來覆蓋畫面的 Div (確保它是可見的)
+    const overlay = document.createElement('div');
+    overlay.style.position = 'absolute';
+    overlay.style.top = '0';
+    overlay.style.left = '0';
+    overlay.style.width = '100%';
+    overlay.style.maxWidth = '900px'; // 限制寬度
+    overlay.style.backgroundColor = '#ffffff';
+    overlay.style.zIndex = '99999'; // 最上層
+    overlay.style.padding = '20px';
+    overlay.style.boxSizing = 'border-box';
     
-    // 2. 填充內容 (加上標題和目前的統計、紀錄)
-    tempContainer.innerHTML = `
-        <div style="padding: 30px; background: #fff; font-family: Arial, sans-serif;">
-            <h1 style="text-align:center; margin-bottom:10px;">🀄 三麻戰績紀錄表</h1>
-            <p style="text-align:center; color:#666; margin-top:0;">匯出時間: ${getCurrentTime()}</p>
-            <hr style="border:0; border-top:2px solid #eee; margin:20px 0;">
-            
-            <h3 style="background:#f8f9fa; padding:10px;">📊 最終結果統計</h3>
-            ${document.getElementById('summary').innerHTML}
-            
-            <h3 style="background:#f8f9fa; padding:10px; margin-top:30px;">📜 詳細對局紀錄</h3>
-            ${document.getElementById('log').innerHTML}
-        </div>
+    // 2. 填入內容
+    overlay.innerHTML = `
+        <h2 style="text-align:center;">🀄 三麻戰績紀錄表</h2>
+        <p style="text-align:center; color:#666;">匯出時間: ${getCurrentTime()}</p>
+        <hr>
+        <h3>📊 最終結果</h3>
+        ${document.getElementById('summary').innerHTML}
+        <br>
+        <h3>📜 詳細對局</h3>
+        ${document.getElementById('log').innerHTML}
     `;
 
-    // 3. 重要：將暫時容器隱藏並加入到 body 中，這樣 html2pdf 才能抓取到
-    tempContainer.style.position = 'absolute';
-    tempContainer.style.left = '-9999px';
-    tempContainer.style.top = '0';
-    tempContainer.style.width = '800px'; // 固定寬度以適應 A4
-    document.body.appendChild(tempContainer);
+    // 移除不必要的按鈕
+    const buttons = overlay.querySelectorAll('.no-print, button');
+    buttons.forEach(btn => btn.style.display = 'none');
 
-    // 移除 PDF 中的「操作」按鈕欄位
-    tempContainer.querySelectorAll('.no-print').forEach(el => el.remove());
+    // 3. 加入 Body (此時畫面會被白色覆蓋)
+    document.body.appendChild(overlay);
 
-    // 4. 設定選項並生成
+    // 4. 設定 PDF 選項
     const opt = {
         margin:       10,
         filename:     `三麻戰績_${getCurrentTime().replace(/[\/ :]/g, '')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, logging: false },
+        html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    html2pdf().set(opt).from(tempContainer).save()
+    // 5. 執行生成，完成後移除覆蓋層
+    html2pdf().set(opt).from(overlay).save()
         .then(() => {
-            document.body.removeChild(tempContainer); // 清理暫時容器
+            document.body.removeChild(overlay);
             btn.innerText = "📥 下載戰績表 (PDF)";
             btn.disabled = false;
         })
         .catch(err => {
             console.error(err);
-            alert("PDF 產生失敗");
-            document.body.removeChild(tempContainer);
+            alert("PDF 失敗，請截圖保存");
+            document.body.removeChild(overlay);
             btn.innerText = "📥 下載戰績表 (PDF)";
             btn.disabled = false;
         });
