@@ -58,8 +58,6 @@
         vertical-align: middle;
     }
     
-    /* 統計小字 */
-    .stat-detail { font-size: 12px; color: #666; display: block; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -108,7 +106,7 @@
 </div>
 
 <div class="container">
-    <button class="pdf-btn" onclick="downloadPDF()">📥 下載戰績表 (PDF)</button>
+    <button id="downloadBtn" class="pdf-btn" onclick="downloadPDF()">📥 下載戰績表 (PDF)</button>
     <h4>📜 詳細紀錄</h4>
     <div id="logContent">
         <div id="log"></div>
@@ -306,7 +304,6 @@ function addResult() {
     const currentDealer = getDealer(gameIndex);
     let isRenchan = false; 
 
-    // 新增 timestamp 欄位
     const record = { 
         changes: {}, 
         fan: selectedFan, 
@@ -316,7 +313,7 @@ function addResult() {
         roundStr: getRoundName(gameIndex),
         dealer: currentDealer,
         preGameIndex: gameIndex,
-        timestamp: getCurrentTime() // 加入時間
+        timestamp: getCurrentTime()
     };
     players.forEach(p => record.changes[p] = 0);
 
@@ -367,31 +364,24 @@ function addResult() {
     highlightButtons();
 }
 
-// 計算統計數據的函數
 function calculateStats() {
     let stats = {};
     players.forEach(p => {
         stats[p] = { wins: 0, dealIns: 0, zimos: 0, games: 0 };
     });
     
-    // 計算總局數 (流局也算一局)
     const totalGames = records.length;
 
     records.forEach(r => {
-        // 參與局數 (所有人都+1)
         players.forEach(p => stats[p].games++);
 
         if (r.type !== "流局") {
-            // 勝場 (出衝 或 自摸 或 包自摸)
             if (r.winner && stats[r.winner]) {
                 stats[r.winner].wins++;
-                // 自摸數
                 if (r.type === "自摸" || r.type === "包自摸") {
                     stats[r.winner].zimos++;
                 }
             }
-            
-            // 出衝數 (出衝 或 包自摸 的輸家)
             if (r.loser && (r.type === "出衝" || r.type === "包自摸")) {
                 if (stats[r.loser]) stats[r.loser].dealIns++;
             }
@@ -406,7 +396,6 @@ function updateUI() {
     document.getElementById("roundDisplay").innerHTML = 
         `${getRoundName(gameIndex)} <span class='dealer-badge'>莊：${currentDealer}</span>`;
 
-    // --- 1. 更新統計表 (含勝率等) ---
     const { stats, totalGames } = calculateStats();
     
     let summaryHtml = `<table class="stats-table">
@@ -418,13 +407,12 @@ function updateUI() {
             <th>出衝率</th>
         </tr>`;
 
-    // 依分數排序
     const sortedPlayers = [...players].sort((a, b) => total[b] - total[a]);
     
     sortedPlayers.forEach(p => {
         const val = total[p];
         const pStats = stats[p];
-        const gameCount = totalGames > 0 ? totalGames : 1; // 避免除以0
+        const gameCount = totalGames > 0 ? totalGames : 1;
         
         const winRate = ((pStats.wins / gameCount) * 100).toFixed(1) + "%";
         const zimoRate = ((pStats.zimos / gameCount) * 100).toFixed(1) + "%";
@@ -441,13 +429,10 @@ function updateUI() {
         </tr>`;
     });
     summaryHtml += "</table>";
-    
-    // 底部加一個總場數
     summaryHtml += `<div style="text-align:right; font-size:12px; color:#888; margin-top:5px;">總局數: ${totalGames}</div>`;
     
     document.getElementById("summary").innerHTML = summaryHtml;
 
-    // --- 2. 更新紀錄表 (含時間) ---
     let logHtml = `<table class="log-table" id="logTable">
         <thead>
             <tr>
@@ -455,7 +440,7 @@ function updateUI() {
                 <th>局數</th>
                 <th>結果</th>
                 ${players.map(p => `<th>${p}</th>`).join('')}
-                <th>操作</th>
+                <th class="no-print">操作</th>
             </tr>
         </thead>
         <tbody>`;
@@ -469,7 +454,6 @@ function updateUI() {
         if (r.type === "流局") detail = "過莊";
         else detail = `${r.fan}番 ` + (r.nextAction==="連莊"?"<span style='color:orange'>(連)</span>":"");
         
-        // 顯示時間，若舊資料沒有時間則顯示 "-"
         const timeStr = r.timestamp || "-";
 
         logHtml += `<tr>
@@ -490,8 +474,7 @@ function updateUI() {
             
             logHtml += `<td style="${style}">${displayVal}</td>`;
         });
-        // PDF 輸出時我們通常會隱藏操作按鈕，這裡透過 CSS 類別控制，或者在輸出前處理
-        logHtml += `<td data-html2canvas-ignore="true"><button style="padding:4px 8px; font-size:12px;" onclick="deleteRecord(${i})">撤銷</button></td></tr>`;
+        logHtml += `<td class="no-print"><button style="padding:4px 8px; font-size:12px;" onclick="deleteRecord(${i})">撤銷</button></td></tr>`;
     });
     logHtml += "</tbody></table>";
     document.getElementById("log").innerHTML = logHtml;
@@ -511,34 +494,62 @@ function deleteRecord(index) {
     saveData();
 }
 
-// PDF 下載功能
+// 修復後的 PDF 下載功能
 function downloadPDF() {
-    const element = document.getElementById('logContent'); // 選擇要列印的區域
-    
-    // 為了 PDF 美觀，我們臨時產生一個包含總結和紀錄的容器
+    const btn = document.getElementById('downloadBtn');
+    btn.innerText = "🔄 正在產生 PDF...";
+    btn.disabled = true;
+
+    // 1. 建立一個暫時的容器
     const tempContainer = document.createElement('div');
-    tempContainer.innerHTML = `
-        <h2 style="text-align:center">🀄 三麻戰績紀錄表</h2>
-        <p style="text-align:center; color:#666">匯出時間: ${getCurrentTime()}</p>
-        <hr>
-        <h3>📊 最終結果</h3>
-        ${document.getElementById('summary').innerHTML}
-        <br>
-        <h3>📜 詳細對局</h3>
-        ${document.getElementById('log').innerHTML}
-    `;
     
-    // 設定 PDF 選項
+    // 2. 填充內容 (加上標題和目前的統計、紀錄)
+    tempContainer.innerHTML = `
+        <div style="padding: 30px; background: #fff; font-family: Arial, sans-serif;">
+            <h1 style="text-align:center; margin-bottom:10px;">🀄 三麻戰績紀錄表</h1>
+            <p style="text-align:center; color:#666; margin-top:0;">匯出時間: ${getCurrentTime()}</p>
+            <hr style="border:0; border-top:2px solid #eee; margin:20px 0;">
+            
+            <h3 style="background:#f8f9fa; padding:10px;">📊 最終結果統計</h3>
+            ${document.getElementById('summary').innerHTML}
+            
+            <h3 style="background:#f8f9fa; padding:10px; margin-top:30px;">📜 詳細對局紀錄</h3>
+            ${document.getElementById('log').innerHTML}
+        </div>
+    `;
+
+    // 3. 重要：將暫時容器隱藏並加入到 body 中，這樣 html2pdf 才能抓取到
+    tempContainer.style.position = 'absolute';
+    tempContainer.style.left = '-9999px';
+    tempContainer.style.top = '0';
+    tempContainer.style.width = '800px'; // 固定寬度以適應 A4
+    document.body.appendChild(tempContainer);
+
+    // 移除 PDF 中的「操作」按鈕欄位
+    tempContainer.querySelectorAll('.no-print').forEach(el => el.remove());
+
+    // 4. 設定選項並生成
     const opt = {
         margin:       10,
         filename:     `三麻戰績_${getCurrentTime().replace(/[\/ :]/g, '')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2 },
+        html2canvas:  { scale: 2, useCORS: true, logging: false },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    // 執行轉換
-    html2pdf().set(opt).from(tempContainer).save();
+    html2pdf().set(opt).from(tempContainer).save()
+        .then(() => {
+            document.body.removeChild(tempContainer); // 清理暫時容器
+            btn.innerText = "📥 下載戰績表 (PDF)";
+            btn.disabled = false;
+        })
+        .catch(err => {
+            console.error(err);
+            alert("PDF 產生失敗");
+            document.body.removeChild(tempContainer);
+            btn.innerText = "📥 下載戰績表 (PDF)";
+            btn.disabled = false;
+        });
 }
 
 // 初始化
