@@ -3,8 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>三麻戰績計算機 (終極版)</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<title>三麻戰績計算機 (原生列印版)</title>
 <style>
     body { font-family: "Microsoft JhengHei", Arial, sans-serif; padding: 20px; max-width: 900px; margin: auto; background: #f0f2f5; color: #333; }
     h2, h4 { text-align: center; margin-bottom: 10px; }
@@ -34,37 +33,43 @@
     .action-btn:hover { background-color: #218838; }
     
     .reset-btn { background-color: #dc3545; color: white; border: none; font-size: 14px; padding: 8px 15px; float: right; }
-    .pdf-btn { background-color: #007bff; color: white; border: none; font-size: 14px; padding: 8px 15px; float: right; margin-right: 10px; }
-    .pdf-btn:hover { background-color: #0069d9; }
-
-    /* 局數顯示 */
+    .print-btn { background-color: #007bff; color: white; border: none; font-size: 14px; padding: 8px 15px; float: right; margin-right: 10px; }
+    
     .round-display {
-        text-align: center;
-        background: #343a40;
-        color: #fff;
-        padding: 10px;
-        border-radius: 8px;
-        font-size: 20px;
-        font-weight: bold;
-        margin-bottom: 15px;
+        text-align: center; background: #343a40; color: #fff; padding: 10px; border-radius: 8px; font-size: 20px; font-weight: bold; margin-bottom: 15px;
     }
     .dealer-badge {
-        background: #ffc107;
-        color: #000;
-        font-size: 12px;
-        padding: 2px 6px;
-        border-radius: 4px;
-        margin-left: 5px;
-        vertical-align: middle;
+        background: #ffc107; color: #000; font-size: 12px; padding: 2px 6px; border-radius: 4px; margin-left: 5px; vertical-align: middle;
     }
-    
+
+    /* === 🖨️ 列印專用樣式 (Print CSS) === */
+    @media print {
+        body { background-color: white; padding: 0; margin: 0; }
+        .container { box-shadow: none; border: none; margin: 0; padding: 0 0 20px 0; }
+        
+        /* 隱藏不需要列印的操作介面 */
+        #controls, .reset-btn, .print-btn, .input-area, h4, .action-btn { display: none !important; }
+        
+        /* 隱藏撤銷按鈕欄位 */
+        .no-print { display: none !important; }
+        
+        /* 確保表格線條清晰 */
+        .stats-table, .log-table { border: 1px solid #000; width: 100%; }
+        .stats-table th, .stats-table td, .log-table th, .log-table td { border: 1px solid #000; color: #000; }
+        
+        /* 標題調整 */
+        h2 { font-size: 24px; margin-top: 0; }
+        
+        /* 強制顯示背景色 (Chrome/Safari 需要) */
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    }
 </style>
 </head>
 <body>
 
 <h2>🀄 三麻戰績計算機</h2>
 
-<div class="container">
+<div class="container input-area">
     <button class="reset-btn" onclick="resetAll()">⚠️ 重置</button>
     <h4>玩家設定</h4>
     <div style="text-align: center;">
@@ -76,7 +81,6 @@
 </div>
 
 <div class="container" id="controls">
-    
     <div id="roundDisplay" class="round-display">東 1 局</div>
 
     <h4>1. 勝出方式</h4>
@@ -100,30 +104,25 @@
     <button class="action-btn" onclick="addResult()">記錄此場</button>
 </div>
 
-<div class="container" id="statsContainer">
-    <h4>📊 實時戰況統計</h4>
+<div class="container">
+    <h4 class="input-area">📊 實時戰況統計</h4>
     <div id="summary"></div>
 </div>
 
 <div class="container">
-    <button id="downloadBtn" class="pdf-btn" onclick="downloadPDF()">📥 下載戰績表 (PDF)</button>
-    <h4>📜 詳細紀錄</h4>
-    <div id="logContent">
-        <div id="log"></div>
-    </div>
+    <button class="print-btn" onclick="window.print()">🖨️ 列印 / 另存 PDF</button>
+    <h4 class="input-area">📜 詳細紀錄</h4>
+    <div id="log"></div>
 </div>
 
 <script>
 let players = ["A", "B", "C"];
 let total = {};
 let records = [];
-
-// 遊戲狀態
 let winner = "";
 let loser = "";
 let selectedFan = 3;
 let selectedMethod = "出衝"; 
-// gameIndex: 0=東1, 1=東2, 2=東3, 3=南1 ...
 let gameIndex = 0; 
 const winds = ["東", "南", "西", "北"];
 
@@ -140,11 +139,11 @@ const priceTable = {
 
 function saveData() {
     const data = { players, total, records, gameIndex };
-    localStorage.setItem("mahjongData_v5", JSON.stringify(data));
+    localStorage.setItem("mahjongData_v6", JSON.stringify(data));
 }
 
 function loadData() {
-    const data = JSON.parse(localStorage.getItem("mahjongData_v5"));
+    const data = JSON.parse(localStorage.getItem("mahjongData_v6"));
     if (data) {
         players = data.players;
         total = data.total;
@@ -167,7 +166,7 @@ function initGame() {
 
 function resetAll() {
     if(confirm("確定要重置所有紀錄和分數，重新開始東1局嗎？")) {
-        localStorage.removeItem("mahjongData_v5");
+        localStorage.removeItem("mahjongData_v6");
         initGame();
         updatePlayerNames(); 
         alert("已重置！");
@@ -180,7 +179,6 @@ function updatePlayerNames() {
         document.getElementById("playerB").value || "B",
         document.getElementById("playerC").value || "C"
     ];
-    
     if (players[0] !== newNames[0] || players[1] !== newNames[1] || players[2] !== newNames[2]) {
         let newTotal = {};
         newNames.forEach((newName, i) => {
@@ -189,7 +187,6 @@ function updatePlayerNames() {
         players = newNames;
         total = newTotal;
     }
-
     renderControls();
     updateUI();
     saveData();
@@ -227,7 +224,6 @@ function renderControls() {
         btn2.onclick = () => { loser = name; if(winner===loser) winner=""; highlightButtons(); };
         loserDiv.appendChild(btn2);
     });
-
     renderFanButtons();
     renderMethodButtons();
     highlightButtons();
@@ -280,13 +276,10 @@ function highlightButtons() {
 
     document.querySelectorAll("#winnerButtons button").forEach(btn => 
         btn.className = (btn.innerText === winner) ? "highlight-winner" : "");
-        
     document.querySelectorAll("#loserButtons button").forEach(btn => 
         btn.className = (btn.innerText === loser) ? "highlight-loser" : "");
-
     document.querySelectorAll("#fanButtons button").forEach(btn => 
         btn.className = (parseInt(btn.innerText) === selectedFan) ? "active-btn" : "");
-        
     document.querySelectorAll("#methodButtons button").forEach(btn => 
         btn.className = (btn.innerText === selectedMethod) ? "active-btn" : "");
 }
@@ -320,7 +313,6 @@ function addResult() {
         isRenchan = false; 
     } else {
         const amount = priceTable[selectedFan];
-        
         if (selectedMethod === "出衝") {
             total[winner] += amount.chong;
             total[loser] -= amount.chong;
@@ -341,10 +333,7 @@ function addResult() {
             record.changes[winner] = totalWin;
             record.changes[loser] = -totalWin;
         }
-
-        if (winner === currentDealer) {
-            isRenchan = true;
-        }
+        if (winner === currentDealer) isRenchan = true;
     }
 
     if (isRenchan) {
@@ -355,9 +344,7 @@ function addResult() {
     }
 
     records.unshift(record);
-    
-    winner = "";
-    loser = "";
+    winner = ""; loser = "";
     updateUI();
     saveData();
     highlightButtons();
@@ -368,25 +355,19 @@ function calculateStats() {
     players.forEach(p => {
         stats[p] = { wins: 0, dealIns: 0, zimos: 0, games: 0 };
     });
-    
     const totalGames = records.length;
-
     records.forEach(r => {
         players.forEach(p => stats[p].games++);
-
         if (r.type !== "流局") {
             if (r.winner && stats[r.winner]) {
                 stats[r.winner].wins++;
-                if (r.type === "自摸" || r.type === "包自摸") {
-                    stats[r.winner].zimos++;
-                }
+                if (r.type === "自摸" || r.type === "包自摸") stats[r.winner].zimos++;
             }
             if (r.loser && (r.type === "出衝" || r.type === "包自摸")) {
                 if (stats[r.loser]) stats[r.loser].dealIns++;
             }
         }
     });
-
     return { stats, totalGames };
 }
 
@@ -398,25 +379,16 @@ function updateUI() {
     const { stats, totalGames } = calculateStats();
     
     let summaryHtml = `<table class="stats-table">
-        <tr>
-            <th>玩家</th>
-            <th>總分</th>
-            <th>勝率</th>
-            <th>自摸率</th>
-            <th>出衝率</th>
-        </tr>`;
+        <tr><th>玩家</th><th>總分</th><th>勝率</th><th>自摸率</th><th>出衝率</th></tr>`;
 
     const sortedPlayers = [...players].sort((a, b) => total[b] - total[a]);
-    
     sortedPlayers.forEach(p => {
         const val = total[p];
         const pStats = stats[p];
         const gameCount = totalGames > 0 ? totalGames : 1;
-        
         const winRate = ((pStats.wins / gameCount) * 100).toFixed(1) + "%";
         const zimoRate = ((pStats.zimos / gameCount) * 100).toFixed(1) + "%";
         const dealInRate = ((pStats.dealIns / gameCount) * 100).toFixed(1) + "%";
-        
         const colorClass = val >= 0 ? "positive" : "negative";
         
         summaryHtml += `<tr>
@@ -429,18 +401,11 @@ function updateUI() {
     });
     summaryHtml += "</table>";
     summaryHtml += `<div style="text-align:right; font-size:12px; color:#888; margin-top:5px;">總局數: ${totalGames}</div>`;
-    
     document.getElementById("summary").innerHTML = summaryHtml;
 
-    let logHtml = `<table class="log-table" id="logTable">
+    let logHtml = `<table class="log-table">
         <thead>
-            <tr>
-                <th>時間</th>
-                <th>局數</th>
-                <th>結果</th>
-                ${players.map(p => `<th>${p}</th>`).join('')}
-                <th class="no-print">操作</th>
-            </tr>
+            <tr><th>時間</th><th>局數</th><th>結果</th>${players.map(p => `<th>${p}</th>`).join('')}<th class="no-print">操作</th></tr>
         </thead>
         <tbody>`;
     
@@ -448,11 +413,7 @@ function updateUI() {
         const typeLabel = r.type === "出衝" ? `<span style='color:red'>出衝</span>` : 
                           r.type === "流局" ? `<span style='color:gray'>流局</span>` :
                           `<span style='color:green'>${r.type}</span>`;
-        
-        let detail = "";
-        if (r.type === "流局") detail = "過莊";
-        else detail = `${r.fan}番 ` + (r.nextAction==="連莊"?"<span style='color:orange'>(連)</span>":"");
-        
+        let detail = r.type === "流局" ? "過莊" : `${r.fan}番 ` + (r.nextAction==="連莊"?"<span style='color:orange'>(連)</span>":"");
         const timeStr = r.timestamp || "-";
 
         logHtml += `<tr>
@@ -462,15 +423,10 @@ function updateUI() {
             
         players.forEach(p => {
             const val = r.changes[p];
-            let displayVal = val;
-            let style = "";
-            if (val > 0) { displayVal = "+" + val; style = "color:green; font-weight:bold;"; }
-            else if (val < 0) { style = "color:red;"; }
-            else { displayVal = "-"; style="color:#ccc;"; }
-            
+            let displayVal = val > 0 ? "+" + val : (val < 0 ? val : "-");
+            let style = val > 0 ? "color:green; font-weight:bold;" : (val < 0 ? "color:red;" : "color:#ccc;");
             if (p === r.winner) style += "background:#e8f5e9;";
             if (p === r.loser && (r.type==="出衝" || r.type==="包自摸")) style += "background:#ffebee;";
-            
             logHtml += `<td style="${style}">${displayVal}</td>`;
         });
         logHtml += `<td class="no-print"><button style="padding:4px 8px; font-size:12px;" onclick="deleteRecord(${i})">撤銷</button></td></tr>`;
@@ -480,85 +436,16 @@ function updateUI() {
 }
 
 function deleteRecord(index) {
-    if(!confirm("確定要撤銷這條紀錄嗎？分數與局數將會回滾。")) return;
+    if(!confirm("確定要撤銷這條紀錄嗎？")) return;
     const r = records[index];
     players.forEach(p => total[p] -= r.changes[p]);
-    if (index === 0) {
-        gameIndex = r.preGameIndex;
-    } else {
-        alert("注意：您刪除的不是最新紀錄，分數已還原，但局數順序不會改變。");
-    }
+    if (index === 0) gameIndex = r.preGameIndex;
+    else alert("注意：您刪除的不是最新紀錄，局數順序不會改變。");
     records.splice(index, 1);
     updateUI();
     saveData();
 }
 
-// 終極修復的 PDF 下載功能
-function downloadPDF() {
-    // 滾動到頂部，確保渲染正確
-    window.scrollTo(0,0);
-
-    const btn = document.getElementById('downloadBtn');
-    btn.innerText = "🔄 處理中...";
-    btn.disabled = true;
-
-    // 1. 創建一個用來覆蓋畫面的 Div (確保它是可見的)
-    const overlay = document.createElement('div');
-    overlay.style.position = 'absolute';
-    overlay.style.top = '0';
-    overlay.style.left = '0';
-    overlay.style.width = '100%';
-    overlay.style.maxWidth = '900px'; // 限制寬度
-    overlay.style.backgroundColor = '#ffffff';
-    overlay.style.zIndex = '99999'; // 最上層
-    overlay.style.padding = '20px';
-    overlay.style.boxSizing = 'border-box';
-    
-    // 2. 填入內容
-    overlay.innerHTML = `
-        <h2 style="text-align:center;">🀄 三麻戰績紀錄表</h2>
-        <p style="text-align:center; color:#666;">匯出時間: ${getCurrentTime()}</p>
-        <hr>
-        <h3>📊 最終結果</h3>
-        ${document.getElementById('summary').innerHTML}
-        <br>
-        <h3>📜 詳細對局</h3>
-        ${document.getElementById('log').innerHTML}
-    `;
-
-    // 移除不必要的按鈕
-    const buttons = overlay.querySelectorAll('.no-print, button');
-    buttons.forEach(btn => btn.style.display = 'none');
-
-    // 3. 加入 Body (此時畫面會被白色覆蓋)
-    document.body.appendChild(overlay);
-
-    // 4. 設定 PDF 選項
-    const opt = {
-        margin:       10,
-        filename:     `三麻戰績_${getCurrentTime().replace(/[\/ :]/g, '')}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { scale: 2, useCORS: true, scrollY: 0 },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
-    // 5. 執行生成，完成後移除覆蓋層
-    html2pdf().set(opt).from(overlay).save()
-        .then(() => {
-            document.body.removeChild(overlay);
-            btn.innerText = "📥 下載戰績表 (PDF)";
-            btn.disabled = false;
-        })
-        .catch(err => {
-            console.error(err);
-            alert("PDF 失敗，請截圖保存");
-            document.body.removeChild(overlay);
-            btn.innerText = "📥 下載戰績表 (PDF)";
-            btn.disabled = false;
-        });
-}
-
-// 初始化
 loadData();
 updatePlayerNames();
 </script>
