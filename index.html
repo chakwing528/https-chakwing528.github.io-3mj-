@@ -2,21 +2,20 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>三人麻雀累計計算機 (優化版)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三麻計算機 (局數版)</title>
 <style>
     body { font-family: "Microsoft JhengHei", Arial, sans-serif; padding: 20px; max-width: 800px; margin: auto; background: #f0f2f5; color: #333; }
     h2, h4 { text-align: center; margin-bottom: 10px; }
     input { padding: 10px; font-size: 16px; width: 80px; text-align: center; border: 1px solid #ddd; border-radius: 4px; }
-    button { margin: 5px; padding: 12px 15px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; background: #fff; transition: all 0.2s; }
+    button { margin: 5px; padding: 12px 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; cursor: pointer; background: #fff; transition: all 0.2s; min-width: 70px;}
     button:hover { background-color: #eee; }
     button:active { transform: scale(0.98); }
-    
-    #controls button { min-width: 60px; }
     
     .container { margin-top: 20px; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
     
     .stats-table, .log-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    .stats-table td, .stats-table th, .log-table td, .log-table th { border: 1px solid #eee; padding: 10px; text-align: center; font-size: 16px; }
+    .stats-table td, .stats-table th, .log-table td, .log-table th { border: 1px solid #eee; padding: 10px; text-align: center; font-size: 15px; }
     .stats-table th { background-color: #f8f9fa; }
     
     /* 狀態顏色 */
@@ -33,38 +32,65 @@
     .action-btn:hover { background-color: #218838; }
     
     .reset-btn { background-color: #dc3545; color: white; border: none; font-size: 14px; padding: 8px 15px; float: right; }
-    .reset-btn:hover { background-color: #c82333; }
+    
+    /* 局數顯示 */
+    .round-display {
+        text-align: center;
+        background: #343a40;
+        color: #fff;
+        padding: 10px;
+        border-radius: 8px;
+        font-size: 20px;
+        font-weight: bold;
+        margin-bottom: 15px;
+    }
+    .dealer-badge {
+        background: #ffc107;
+        color: #000;
+        font-size: 12px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 5px;
+        vertical-align: middle;
+    }
 </style>
 </head>
 <body>
 
-<h2>🀄 三人麻雀累計計算機</h2>
+<h2>🀄 三麻計算機</h2>
 
 <div class="container">
-    <button class="reset-btn" onclick="resetAll()">⚠️ 重置所有資料</button>
-    <h4>玩家名稱設定</h4>
+    <button class="reset-btn" onclick="resetAll()">⚠️ 重置</button>
+    <h4>玩家設定</h4>
     <div style="text-align: center;">
-        <input type="text" id="playerA" placeholder="玩家A" value="A">
-        <input type="text" id="playerB" placeholder="玩家B" value="B">
-        <input type="text" id="playerC" placeholder="玩家C" value="C">
+        <input type="text" id="playerA" placeholder="東家" value="A">
+        <input type="text" id="playerB" placeholder="南家" value="B">
+        <input type="text" id="playerC" placeholder="西家" value="C">
         <button onclick="updatePlayerNames()">更新名稱</button>
     </div>
 </div>
 
 <div class="container" id="controls">
+    
+    <div id="roundDisplay" class="round-display">東 1 局</div>
+
     <h4>1. 勝出方式</h4>
     <div id="methodButtons" style="text-align: center;"></div>
 
-    <h4>2. 選擇勝家</h4>
-    <div id="winnerButtons" style="text-align: center;"></div>
+    <div id="winnerSection">
+        <h4>2. 選擇勝家</h4>
+        <div id="winnerButtons" style="text-align: center;"></div>
+    </div>
 
     <div id="loserSection">
-        <h4>3. 選擇輸家 (包牌)</h4>
+        <h4>3. 選擇輸家 / 包牌者</h4>
         <div id="loserButtons" style="text-align: center;"></div>
     </div>
 
-    <h4>4. 番數</h4>
-    <div id="fanButtons" style="text-align: center;"></div>
+    <div id="fanSection">
+        <h4>4. 番數</h4>
+        <div id="fanButtons" style="text-align: center;"></div>
+    </div>
 
     <button class="action-btn" onclick="addResult()">記錄此場</button>
 </div>
@@ -72,29 +98,26 @@
 <div class="container">
     <h4>目前戰況</h4>
     <div id="summary" style="font-size: 18px; line-height: 1.6; text-align: center;"></div>
-    <div id="totalGames" style="text-align: center; color: #666; margin-top: 10px;"></div>
-</div>
-
-<div class="container">
-    <h4>統計數據</h4>
-    <div id="stats"></div>
 </div>
 
 <div class="container" id="log">
-    <h4>詳細紀錄</h4>
+    <h4>紀錄 (最新在最上)</h4>
 </div>
 
 <script>
 let players = ["A", "B", "C"];
 let total = {};
-let stats = {};
+let records = [];
+
+// 遊戲狀態
 let winner = "";
 let loser = "";
 let selectedFan = 3;
-let selectedMethod = "出衝"; // 預設
-let records = [];
+let selectedMethod = "出衝"; 
+// gameIndex: 0=東1, 1=東2, 2=東3, 3=南1 ...
+let gameIndex = 0; 
+const winds = ["東", "南", "西", "北"];
 
-// 定義番數與籌碼表 (您可以根據需求修改此表)
 const priceTable = {
     3: { chong: 2, zimo: 2 },
     4: { chong: 4, zimo: 3 },
@@ -106,22 +129,18 @@ const priceTable = {
     10: { chong: 32, zimo: 24 }
 };
 
-function createStats() {
-    return { chongTotal: 0, zimoTotal: 0 };
-}
-
 function saveData() {
-    const data = { players, total, stats, records };
-    localStorage.setItem("mahjongData_v2", JSON.stringify(data));
+    const data = { players, total, records, gameIndex };
+    localStorage.setItem("mahjongData_v3", JSON.stringify(data));
 }
 
 function loadData() {
-    const data = JSON.parse(localStorage.getItem("mahjongData_v2"));
+    const data = JSON.parse(localStorage.getItem("mahjongData_v3"));
     if (data) {
         players = data.players;
         total = data.total;
-        stats = data.stats;
         records = data.records;
+        gameIndex = (data.gameIndex !== undefined) ? data.gameIndex : 0;
         document.getElementById("playerA").value = players[0];
         document.getElementById("playerB").value = players[1];
         document.getElementById("playerC").value = players[2];
@@ -132,50 +151,51 @@ function loadData() {
 
 function initGame() {
     total = {};
-    stats = {};
-    players.forEach(p => {
-        total[p] = 0;
-        stats[p] = createStats();
-    });
+    players.forEach(p => total[p] = 0);
     records = [];
+    gameIndex = 0; // 重置回東1局
 }
 
 function resetAll() {
-    if(confirm("確定要刪除所有紀錄並重置嗎？")) {
-        localStorage.removeItem("mahjongData_v2");
+    if(confirm("確定要重置所有紀錄和分數，重新開始東1局嗎？")) {
+        localStorage.removeItem("mahjongData_v3");
         initGame();
-        updatePlayerNames();
+        updatePlayerNames(); // 重新讀取名字並刷新界面
         alert("已重置！");
     }
 }
 
 function updatePlayerNames() {
-    // 更新名稱陣列
     const newNames = [
         document.getElementById("playerA").value || "A",
         document.getElementById("playerB").value || "B",
         document.getElementById("playerC").value || "C"
     ];
     
-    // 如果是中途改名，需要遷移數據
+    // 簡單的資料遷移（若中途改名）
     if (players[0] !== newNames[0] || players[1] !== newNames[1] || players[2] !== newNames[2]) {
         let newTotal = {};
-        let newStats = {};
-        
         newNames.forEach((newName, i) => {
-            let oldName = players[i];
-            newTotal[newName] = total[oldName] || 0;
-            newStats[newName] = stats[oldName] || createStats();
+            newTotal[newName] = total[players[i]] || 0;
         });
-        
         players = newNames;
         total = newTotal;
-        stats = newStats;
     }
 
     renderControls();
     updateUI();
     saveData();
+}
+
+function getRoundName(idx) {
+    const wind = winds[Math.floor(idx / 3) % 4];
+    const subRound = (idx % 3) + 1;
+    return `${wind} ${subRound} 局`;
+}
+
+function getDealer(idx) {
+    // 0=Player0, 1=Player1, 2=Player2
+    return players[idx % 3];
 }
 
 function renderControls() {
@@ -185,13 +205,11 @@ function renderControls() {
     loserDiv.innerHTML = "";
 
     players.forEach(name => {
-        // 勝家按鈕
         const btn1 = document.createElement("button");
         btn1.innerText = name;
         btn1.onclick = () => { winner = name; if(winner===loser) loser=""; highlightButtons(); };
         winnerDiv.appendChild(btn1);
 
-        // 輸家按鈕
         const btn2 = document.createElement("button");
         btn2.innerText = name;
         btn2.onclick = () => { loser = name; if(winner===loser) winner=""; highlightButtons(); };
@@ -217,12 +235,12 @@ function renderFanButtons() {
 function renderMethodButtons() {
     const methodDiv = document.getElementById("methodButtons");
     methodDiv.innerHTML = "";
-    ["出衝", "自摸"].forEach(method => {
+    ["出衝", "自摸", "包自摸", "流局"].forEach(method => {
         const btn = document.createElement("button");
         btn.innerText = method;
         btn.onclick = () => { 
             selectedMethod = method; 
-            loser = ""; // 切換模式時清空輸家
+            winner = ""; loser = ""; // 切換模式時清空
             highlightButtons(); 
         };
         methodDiv.appendChild(btn);
@@ -230,15 +248,29 @@ function renderMethodButtons() {
 }
 
 function highlightButtons() {
-    // 處理自摸時隱藏輸家選項
-    const loserSection = document.getElementById("loserSection");
-    if (selectedMethod === "自摸") {
-        loserSection.classList.add("disabled-section");
-        loser = ""; // 自摸沒有特定輸家
-    } else {
-        loserSection.classList.remove("disabled-section");
+    const winnerSec = document.getElementById("winnerSection");
+    const loserSec = document.getElementById("loserSection");
+    const fanSec = document.getElementById("fanSection");
+
+    // 預設顯示
+    winnerSec.classList.remove("disabled-section");
+    loserSec.classList.remove("disabled-section");
+    fanSec.classList.remove("disabled-section");
+
+    // 根據模式隱藏不必要的按鈕
+    if (selectedMethod === "流局") {
+        winnerSec.classList.add("disabled-section");
+        loserSec.classList.add("disabled-section");
+        fanSec.classList.add("disabled-section");
+        winner = ""; loser = "";
+    } else if (selectedMethod === "自摸") {
+        loserSec.classList.add("disabled-section");
+        loser = ""; 
+    } else if (selectedMethod === "包自摸" || selectedMethod === "出衝") {
+        // 都需要勝者和輸家
     }
 
+    // 樣式更新
     document.querySelectorAll("#winnerButtons button").forEach(btn => 
         btn.className = (btn.innerText === winner) ? "highlight-winner" : "");
         
@@ -253,57 +285,94 @@ function highlightButtons() {
 }
 
 function addResult() {
-    if (!winner) return alert("請選擇勝出玩家！");
-    if (selectedMethod === "出衝") {
-        if (!loser) return alert("出衝必須選擇輸家！");
-        if (winner === loser) return alert("勝家與輸家不能相同！");
+    // 驗證
+    if (selectedMethod !== "流局") {
+        if (!winner) return alert("請選擇勝出玩家！");
+        if (selectedMethod === "出衝" || selectedMethod === "包自摸") {
+            if (!loser) return alert("請選擇輸家/包牌者！");
+            if (winner === loser) return alert("勝家與輸家不能相同！");
+        }
     }
 
-    const amount = selectedMethod === "出衝" ? priceTable[selectedFan].chong : priceTable[selectedFan].zimo;
-    
-    // 建立紀錄物件 (新增 type 欄位以優化 Undo 邏輯)
+    const currentDealer = getDealer(gameIndex);
+    let isRenchan = false; // 是否連莊
+
+    // 建立紀錄物件 (儲存當前的 gameIndex 以便撤銷)
     const record = { 
         changes: {}, 
         fan: selectedFan, 
         winner: winner,
         loser: loser,
-        type: selectedMethod 
+        type: selectedMethod,
+        roundStr: getRoundName(gameIndex),
+        dealer: currentDealer,
+        preGameIndex: gameIndex // 存下這一場之前的局數索引
     };
-    
     players.forEach(p => record.changes[p] = 0);
 
-    if (selectedMethod === "出衝") {
-        total[winner] += amount;
-        total[loser] -= amount;
-        stats[winner].chongTotal++;
-        record.changes[winner] = amount;
-        record.changes[loser] = -amount;
+    // 計算分數
+    if (selectedMethod === "流局") {
+        // 流局無分數變動 (若需罰符可在此修改)
+        isRenchan = false; // 流局過莊
     } else {
-        // 自摸：勝家贏 2份，其他兩家各輸 1份
-        players.filter(p => p !== winner).forEach(p => {
-            total[p] -= amount;
-            record.changes[p] = -amount;
-        });
-        total[winner] += amount * 2;
-        record.changes[winner] = amount * 2;
-        stats[winner].zimoTotal++;
+        const amount = priceTable[selectedFan];
+        
+        if (selectedMethod === "出衝") {
+            total[winner] += amount.chong;
+            total[loser] -= amount.chong;
+            record.changes[winner] = amount.chong;
+            record.changes[loser] = -amount.chong;
+        } else if (selectedMethod === "自摸") {
+            const zimoAmt = amount.zimo;
+            players.filter(p => p !== winner).forEach(p => {
+                total[p] -= zimoAmt;
+                record.changes[p] = -zimoAmt;
+            });
+            total[winner] += zimoAmt * 2;
+            record.changes[winner] = zimoAmt * 2;
+        } else if (selectedMethod === "包自摸") {
+            // 贏家贏自摸總額，全由輸家付
+            const totalWin = amount.zimo * 2;
+            total[winner] += totalWin;
+            total[loser] -= totalWin;
+            record.changes[winner] = totalWin;
+            record.changes[loser] = -totalWin;
+        }
+
+        // 判斷連莊 (贏家是莊家)
+        if (winner === currentDealer) {
+            isRenchan = true;
+        }
     }
 
-    records.unshift(record); // 新紀錄放在最前面
+    // 更新局數
+    if (isRenchan) {
+        // 連莊：局數不變
+        record.nextAction = "連莊";
+    } else {
+        // 過莊 (包括流局)
+        gameIndex++; 
+        record.nextAction = "過莊";
+    }
+
+    records.unshift(record);
     
-    // 重置選項方便下一局
+    // 重置選項
     winner = "";
     loser = "";
-    
     updateUI();
     saveData();
     highlightButtons();
 }
 
 function updateUI() {
+    // 更新局數顯示
+    const currentDealer = getDealer(gameIndex);
+    document.getElementById("roundDisplay").innerHTML = 
+        `${getRoundName(gameIndex)} <span class='dealer-badge'>莊：${currentDealer}</span>`;
+
     // 總結
     let summaryHtml = "";
-    // 排序顯示，分數高的在前面
     const sortedPlayers = [...players].sort((a, b) => total[b] - total[a]);
     sortedPlayers.forEach(p => {
         const val = total[p];
@@ -311,31 +380,25 @@ function updateUI() {
         summaryHtml += `<div>${p}：<span class="${colorClass}">${val > 0 ? "+" : ""}${val}</span></div>`;
     });
     document.getElementById("summary").innerHTML = summaryHtml;
-    document.getElementById("totalGames").innerText = `總場數：${records.length}`;
-
-    // 統計表
-    let statsHtml = `<table class="stats-table"><tr><th>玩家</th><th>出衝</th><th>自摸</th><th>勝率</th></tr>`;
-    players.forEach(p => {
-        const totalWin = stats[p].chongTotal + stats[p].zimoTotal;
-        const winRate = records.length ? ((totalWin / records.length) * 100).toFixed(1) + "%" : "0.0%";
-        statsHtml += `<tr><td>${p}</td><td>${stats[p].chongTotal}</td><td>${stats[p].zimoTotal}</td><td>${winRate}</td></tr>`;
-    });
-    statsHtml += "</table>";
-    document.getElementById("stats").innerHTML = statsHtml;
 
     // 歷史紀錄
-    let logHtml = `<table class="log-table"><tr><th>回數</th><th>類型</th><th>番</th>`;
+    let logHtml = `<table class="log-table"><tr><th>局數</th><th>類型</th><th>詳情</th>`;
     players.forEach(p => logHtml += `<th>${p}</th>`);
     logHtml += `<th>操作</th></tr>`;
     
     records.forEach((r, i) => {
-        const actualIndex = records.length - i; // 顯示場次編號
-        const typeLabel = r.type === "出衝" ? `<span style='color:red'>出衝</span>` : `<span style='color:green'>自摸</span>`;
+        const typeLabel = r.type === "出衝" ? `<span style='color:red'>出衝</span>` : 
+                          r.type === "流局" ? `<span style='color:gray'>流局</span>` :
+                          `<span style='color:green'>${r.type}</span>`;
         
+        let detail = "";
+        if (r.type === "流局") detail = "過莊";
+        else detail = `${r.fan}番 ` + (r.nextAction==="連莊"?"<span style='color:orange'>(連)</span>":"");
+
         logHtml += `<tr>
-            <td>${actualIndex}</td>
+            <td>${r.roundStr}<br><span style="font-size:12px;color:#888">莊:${r.dealer}</span></td>
             <td>${typeLabel}</td>
-            <td>${r.fan}</td>`;
+            <td>${detail}</td>`;
             
         players.forEach(p => {
             const val = r.changes[p];
@@ -345,9 +408,8 @@ function updateUI() {
             else if (val < 0) { style = "color:red;"; }
             else { displayVal = "-"; style="color:#ccc;"; }
             
-            // 標記贏家或放槍者
             if (p === r.winner) style += "background:#e8f5e9;";
-            if (p === r.loser && r.type === "出衝") style += "background:#ffebee;";
+            if (p === r.loser && (r.type==="出衝" || r.type==="包自摸")) style += "background:#ffebee;";
             
             logHtml += `<td style="${style}">${displayVal}</td>`;
         });
@@ -358,18 +420,22 @@ function updateUI() {
 }
 
 function deleteRecord(index) {
-    if(!confirm("確定要撤銷這條紀錄嗎？分數將會回滾。")) return;
+    if(!confirm("確定要撤銷這條紀錄嗎？分數與局數將會回滾。")) return;
 
+    // 只能刪除最新的一筆 (index 0) 才能保證局數邏輯正確
+    // 如果使用者想刪除舊的，這裡簡單處理：只允許刪除第一筆，或者刪除任意筆但只回滾分數，不回滾局數(因為邏輯會亂)
+    // 為了安全起見，這裡建議邏輯是：刪除任意紀錄回滾分數，但只有刪除「最新」紀錄時才回滾局數
+    
     const r = records[index];
     
-    // 回滾分數
+    // 1. 回滾分數
     players.forEach(p => total[p] -= r.changes[p]);
     
-    // 回滾統計數據
-    if (r.type === "出衝") {
-        stats[r.winner].chongTotal--;
+    // 2. 回滾局數 (只有當刪除的是最新的一筆紀錄時)
+    if (index === 0) {
+        gameIndex = r.preGameIndex;
     } else {
-        stats[r.winner].zimoTotal--;
+        alert("注意：您刪除的不是最新紀錄，分數已還原，但局數順序不會改變。");
     }
     
     records.splice(index, 1);
